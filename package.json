@@ -1,10 +1,24 @@
 {
-  "name": "law-kr",
+  "name": "korea-law",
   "version": "1.1.0",
-  "description": "Korean Law Library (KR) - korea-law wrapper | 한국 법률 라이브러리",
-  "main": "index.js",
+  "description": "Korea Law MCP Server - AI Legal Auditor for Korean Law Verification (한국 법률 MCP 서버)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "korea-law": "./dist/cli.js"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc && cp src/db/schema.sql dist/db/",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "sync": "ts-node src/sync/daily-sync.ts",
+    "sync:full": "ts-node src/sync/full-sync.ts",
+    "sync:precedent": "ts-node src/sync/precedent-sync.ts",
+    "sync:terms": "ts-node src/sync/term-extractor.ts",
+    "sync:all": "npm run sync && npm run sync:precedent && npm run sync:terms",
+    "sync:complete": "npm run sync:full && npm run sync:precedent && npm run sync:terms",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
   },
   "keywords": [
     "law",
@@ -12,17 +26,39 @@
     "korean",
     "legal",
     "mcp",
+    "model-context-protocol",
+    "llm",
+    "audit",
+    "verification",
     "법률",
     "한국법",
-    "kr"
+    "법령",
+    "국가법령정보센터"
   ],
   "author": "2seo <iyu974895@gmail.com>",
   "license": "MIT",
-  "dependencies": {
-    "korea-law": "^1.0.0"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/2seo/korea-law"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@supabase/supabase-js": "^2.39.0",
+    "better-sqlite3": "^11.0.0",
+    "axios": "^1.6.0",
+    "fast-xml-parser": "^4.3.0",
+    "node-cron": "^3.0.3",
+    "date-fns": "^3.0.0",
+    "dotenv": "^16.3.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/node": "^20.10.0",
+    "@types/node-cron": "^3.0.11",
+    "typescript": "^5.3.0",
+    "ts-node": "^10.9.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
