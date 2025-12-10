@@ -1,0 +1,28 @@
+{
+  "name": "law-kr",
+  "version": "1.1.0",
+  "description": "Korean Law Library (KR) - korea-law wrapper | 한국 법률 라이브러리",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "law",
+    "korea",
+    "korean",
+    "legal",
+    "mcp",
+    "법률",
+    "한국법",
+    "kr"
+  ],
+  "author": "2seo <iyu974895@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "korea-law": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/2seo/korea-law"
+  }
+}
