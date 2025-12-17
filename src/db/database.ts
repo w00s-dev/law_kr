@@ -108,6 +108,20 @@ export interface DiffRecord {
   warning_message?: string;
 }
 
+export interface SyncMetadataRecord {
+  sync_type: 'FULL' | 'INCREMENTAL' | 'DIFF';
+  started_at: string;
+  completed_at?: string;
+  status?: 'RUNNING' | 'SUCCESS' | 'FAILED';
+  laws_added?: number;
+  laws_updated?: number;
+  articles_added?: number;
+  articles_updated?: number;
+  diffs_detected?: number;
+  error_message?: string;
+  source_data_date?: string;
+}
+
 /**
  * 법령 추가/업데이트
  */
@@ -165,31 +179,64 @@ export function upsertArticle(article: ArticleRecord): number {
   const normalized = normalizeArticleNo(article.article_no);
   const contentHash = generateChecksum(article.content);
 
-  const stmt = db.prepare(`
-    INSERT INTO Articles (law_id, article_no, article_no_normalized, article_title, content, 
-                          paragraph_count, is_definition, content_hash, effective_from, effective_until)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON CONFLICT DO UPDATE SET
-      content = excluded.content,
-      article_title = excluded.article_title,
-      content_hash = excluded.content_hash,
-      updated_at = CURRENT_TIMESTAMP
+  // 먼저 기존 레코드 확인
+  const checkStmt = db.prepare(`
+    SELECT id FROM Articles WHERE law_id = ? AND article_no = ?
   `);
+  const existing = checkStmt.get(article.law_id, article.article_no) as { id: number } | undefined;
 
-  const result = stmt.run(
-    article.law_id,
-    article.article_no,
-    normalized,
-    article.article_title || null,
-    article.content,
-    article.paragraph_count || 1,
-    article.is_definition ? 1 : 0,
-    contentHash,
-    article.effective_from || null,
-    article.effective_until || null
-  );
+  if (existing) {
+    // 업데이트
+    const updateStmt = db.prepare(`
+      UPDATE Articles SET
+        article_no_normalized = ?,
+        article_title = ?,
+        content = ?,
+        paragraph_count = ?,
+        is_definition = ?,
+        content_hash = ?,
+        effective_from = ?,
+        effective_until = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
 
-  return result.lastInsertRowid as number;
+    updateStmt.run(
+      normalized,
+      article.article_title || null,
+      article.content,
+      article.paragraph_count || 1,
+      article.is_definition ? 1 : 0,
+      contentHash,
+      article.effective_from || null,
+      article.effective_until || null,
+      existing.id
+    );
+
+    return existing.id;
+  } else {
+    // 신규 삽입
+    const insertStmt = db.prepare(`
+      INSERT INTO Articles (law_id, article_no, article_no_normalized, article_title, content,
+                            paragraph_count, is_definition, content_hash, effective_from, effective_until)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const result = insertStmt.run(
+      article.law_id,
+      article.article_no,
+      normalized,
+      article.article_title || null,
+      article.content,
+      article.paragraph_count || 1,
+      article.is_definition ? 1 : 0,
+      contentHash,
+      article.effective_from || null,
+      article.effective_until || null
+    );
+
+    return result.lastInsertRowid as number;
+  }
 }
 
 /**
@@ -197,7 +244,7 @@ export function upsertArticle(article: ArticleRecord): number {
  */
 export function insertDiffLog(diff: DiffRecord): number {
   const db = getDatabase();
-  
+
   const stmt = db.prepare(`
     INSERT INTO Diff_Logs (law_id, article_id, change_type, previous_content, current_content,
                            diff_summary, effective_from, is_critical, warning_message)
@@ -217,6 +264,72 @@ export function insertDiffLog(diff: DiffRecord): number {
   );
 
   return result.lastInsertRowid as number;
+}
+
+/**
+ * 동기화 메타데이터 기록
+ */
+export function insertSyncMetadata(metadata: SyncMetadataRecord): number {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    INSERT INTO SyncMetadata (sync_type, started_at, completed_at, status, laws_added, laws_updated,
+                              articles_added, articles_updated, diffs_detected, error_message, source_data_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const result = stmt.run(
+    metadata.sync_type,
+    metadata.started_at,
+    metadata.completed_at || null,
+    metadata.status || 'SUCCESS',
+    metadata.laws_added || 0,
+    metadata.laws_updated || 0,
+    metadata.articles_added || 0,
+    metadata.articles_updated || 0,
+    metadata.diffs_detected || 0,
+    metadata.error_message || null,
+    metadata.source_data_date || null
+  );
+
+  return result.lastInsertRowid as number;
+}
+
+/**
+ * 동기화 메타데이터 업데이트
+ */
+export function updateSyncMetadata(
+  syncId: number,
+  updates: Partial<Omit<SyncMetadataRecord, 'sync_type' | 'started_at'>>
+): void {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    UPDATE SyncMetadata SET
+      completed_at = COALESCE(?, completed_at),
+      status = COALESCE(?, status),
+      laws_added = COALESCE(?, laws_added),
+      laws_updated = COALESCE(?, laws_updated),
+      articles_added = COALESCE(?, articles_added),
+      articles_updated = COALESCE(?, articles_updated),
+      diffs_detected = COALESCE(?, diffs_detected),
+      error_message = COALESCE(?, error_message),
+      source_data_date = COALESCE(?, source_data_date)
+    WHERE id = ?
+  `);
+
+  stmt.run(
+    updates.completed_at || null,
+    updates.status || null,
+    updates.laws_added !== undefined ? updates.laws_added : null,
+    updates.laws_updated !== undefined ? updates.laws_updated : null,
+    updates.articles_added !== undefined ? updates.articles_added : null,
+    updates.articles_updated !== undefined ? updates.articles_updated : null,
+    updates.diffs_detected !== undefined ? updates.diffs_detected : null,
+    updates.error_message || null,
+    updates.source_data_date || null,
+    syncId
+  );
 }
 
 // ============================================

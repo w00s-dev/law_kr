@@ -368,18 +368,18 @@ export async function runFullSync(config: SyncConfig = DEFAULT_CONFIG): Promise<
 }
 
 /**
- * Cron Job 스케줄링 (매일 자정)
+ * Cron Job 스케줄링 (매일 오후 10시)
  */
 export function scheduleDailySync(): void {
-  // 매일 00:00 KST 실행
-  cron.schedule('0 0 * * *', async () => {
+  // 매일 22:00 KST 실행
+  cron.schedule('0 22 * * *', async () => {
     console.log('\n⏰ 스케줄된 Daily Sync 시작...\n');
     await runFullSync();
   }, {
     timezone: 'Asia/Seoul',
   });
 
-  console.log('📆 Daily Sync 스케줄 등록됨 (매일 00:00 KST)');
+  console.log('📆 Daily Sync 스케줄 등록됨 (매일 22:00 KST)');
 }
 
 // ============================================

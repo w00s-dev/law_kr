@@ -11,8 +11,10 @@ import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { XMLParser } from 'fast-xml-parser';
 
 const BASE_URL = 'http://www.law.go.kr/DRF';
-// API 키: 환경변수 설정 권장, 기본값은 공공데이터포털 샘플키
-const API_KEY = process.env.KOREA_LAW_API_KEY || 'sapphire_5';
+// API 키: 환경변수 설정 권장
+const API_KEY = process.env.KOREA_LAW_API_KEY || 'theqwe2000';
+// Referer: 등록된 도메인 (API 인증에 필요)
+const REFERER = process.env.KOREA_LAW_REFERER || 'https://ainote.dev';
 
 // Retry 설정
 const RETRY_CONFIG = {
@@ -36,6 +38,7 @@ const apiClient: AxiosInstance = axios.create({
   timeout: 30000,
   headers: {
     'Accept': 'application/xml',
+    'Referer': REFERER,
   },
 });
 
